@@ -1,8 +1,4 @@
-
-
-import os
 import streamlit as st
-from dotenv import load_dotenv
 from langchain_openai.chat_models import ChatOpenAI
 from langchain.prompts import ChatPromptTemplate
 from langchain_core.output_parsers import StrOutputParser
@@ -11,11 +7,10 @@ from langchain_openai.embeddings import OpenAIEmbeddings
 from langchain_community.document_loaders import PyMuPDFLoader
 from sklearn.metrics.pairwise import cosine_similarity
 
-# Load environment variables
-load_dotenv()
-OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
+# Load API Key from Streamlit Secrets
+OPENAI_API_KEY = st.secrets["OPENAI_API_KEY"]
 
-# Initialize model
+# Initialize OpenAI model & parser
 model = ChatOpenAI(openai_api_key=OPENAI_API_KEY, model="gpt-3.5-turbo")
 parser = StrOutputParser()
 
@@ -32,7 +27,7 @@ if uploaded_file:
     with open(pdf_path, "wb") as f:
         f.write(uploaded_file.getbuffer())
 
-    # Load PDF file
+    # Load and process PDF
     loader = PyMuPDFLoader(pdf_path)
     text_documents = loader.load()
 
@@ -42,6 +37,7 @@ if uploaded_file:
 
     # Generate embeddings
     embeddings = OpenAIEmbeddings(openai_api_key=OPENAI_API_KEY)
+    doc_embeddings = [embeddings.embed_query(doc.page_content) for doc in documents]
 
     # User input
     user_query = st.text_input("Ask a question about the document:")
@@ -50,8 +46,7 @@ if uploaded_file:
         # Embed user query
         embedded_query = embeddings.embed_query(user_query)
 
-        # Compute similarity with document chunks
-        doc_embeddings = [embeddings.embed_query(doc.page_content) for doc in documents]
+        # Compute cosine similarity
         similarities = [cosine_similarity([embedded_query], [doc_emb])[0][0] for doc_emb in doc_embeddings]
 
         # Retrieve most relevant chunk
@@ -73,4 +68,3 @@ if uploaded_file:
         # Display answer
         st.write("### 📝 Answer:")
         st.success(response)
-
